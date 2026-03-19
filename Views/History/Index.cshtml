@@ -1,0 +1,95 @@
+@model PasswordGenerator.Models.HistoryViewModel
+@{
+    ViewData["Title"] = "История паролей";
+    Func<double, int> StrengthLevel = e =>
+        e < 28 ? 0 : e < 36 ? 1 : e < 60 ? 2 : e < 128 ? 3 : 4;
+}
+
+<div class="history-page">
+
+  <div class="history-header">
+    <h1 class="page-title">История</h1>
+    <div class="history-actions">
+      <a asp-action="ExportTxt" class="btn-outline">Экспорт TXT</a>
+      <a asp-action="ExportCsv" class="btn-outline">Экспорт CSV</a>
+      <form asp-action="ClearAll" method="post" onsubmit="return confirm('Удалить всю историю?')">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn-danger">Очистить</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Search + sort -->
+  <form method="get" class="filter-bar">
+    <input type="text" name="search" value="@Model.SearchTerm" placeholder="Поиск по надёжности, набору..." class="text-input search-input">
+    <select name="sortBy" class="select-input" onchange="this.form.submit()">
+      <option value="date"     selected="@(Model.SortBy == "date"     ? "selected" : null)">По дате</option>
+      <option value="length"   selected="@(Model.SortBy == "length"   ? "selected" : null)">По длине</option>
+      <option value="strength" selected="@(Model.SortBy == "strength" ? "selected" : null)">По надёжности</option>
+    </select>
+    <button type="submit" class="btn-outline">Найти</button>
+  </form>
+
+  <p class="history-count">Найдено: <strong>@Model.TotalCount</strong> паролей</p>
+
+  @if (!Model.Entries.Any())
+  {
+    <div class="empty-state">
+      <div class="empty-icon">⬡</div>
+      <p>История пуста. Сгенерируйте пароли с опцией «Сохранить».</p>
+    </div>
+  }
+  else
+  {
+    <div class="history-list">
+      @foreach (var e in Model.Entries)
+      {
+        <div class="history-row">
+          <div class="history-main">
+            <span class="pwd-value mono">@e.Value</span>
+            <div class="pwd-meta">
+              <span class="strength-badge s@(StrengthLevel(e.Entropy))">@e.StrengthLabel</span>
+              <span class="entropy-tag">@e.Entropy.ToString("F1") bits</span>
+              <span class="charset-tag">@e.CharSets</span>
+              <span class="date-tag">@e.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+            </div>
+          </div>
+          <div class="history-row-actions">
+            <button class="btn-copy" data-val="@e.Value" onclick="copyBtn(this)">Копировать</button>
+            <form asp-action="Delete" method="post" style="display:inline">
+              @Html.AntiForgeryToken()
+              <input type="hidden" name="id" value="@e.Id">
+              <button type="submit" class="btn-icon-del" title="Удалить">✕</button>
+            </form>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Pagination -->
+    @if (Model.TotalPages > 1)
+    {
+      <div class="pagination">
+        @for (int p = 1; p <= Model.TotalPages; p++)
+        {
+          <a asp-action="Index" asp-route-page="@p" asp-route-search="@Model.SearchTerm"
+             asp-route-sortBy="@Model.SortBy"
+             class="page-btn @(p == Model.Page ? "active" : "")">@p</a>
+        }
+      </div>
+    }
+  }
+</div>
+
+@section Scripts {
+<script>
+function copyBtn(btn) {
+    const val = btn.dataset.val;
+    navigator.clipboard.writeText(val).then(() => {
+        btn.textContent = '✓';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Копировать'; btn.classList.remove('copied'); }, 1500);
+    });
+}
+</script>
+}

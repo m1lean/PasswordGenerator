@@ -1,0 +1,174 @@
+@model PasswordGenerator.Models.HomeViewModel
+@{
+    ViewData["Title"] = "Генератор паролей";
+}
+
+<div class="page-grid">
+
+  <!-- LEFT: settings panel -->
+  <aside class="settings-panel">
+    <h2 class="panel-title">Настройки</h2>
+
+    <form asp-action="Generate" method="post">
+      @Html.AntiForgeryToken()
+
+      <!-- Length -->
+      <div class="field-group">
+        <div class="field-row">
+          <label class="field-label">Длина пароля</label>
+          <span class="field-val" id="length-val">@Model.Request.Length</span>
+        </div>
+        <input type="range" id="length-range" name="Length" min="4" max="128"
+               value="@Model.Request.Length" class="slider" oninput="document.getElementById('length-val').textContent=this.value">
+      </div>
+
+      <!-- Count -->
+      <div class="field-group">
+        <div class="field-row">
+          <label class="field-label">Количество паролей</label>
+          <span class="field-val" id="count-val">@Model.Request.Count</span>
+        </div>
+        <input type="range" id="count-range" name="Count" min="1" max="100"
+               value="@Model.Request.Count" class="slider" oninput="document.getElementById('count-val').textContent=this.value">
+      </div>
+
+      <hr class="divider">
+
+      <!-- Char sets -->
+      <p class="field-label mb-8">Набор символов</p>
+      <div class="checkbox-grid">
+        <label class="cb @(Model.Request.UseUpper ? "on" : "")">
+          <input type="checkbox" name="UseUpper" value="true" @(Model.Request.UseUpper ? "checked" : "")>
+          <span class="cb-box"></span>
+          <span class="cb-text">Прописные <code>ABC</code></span>
+        </label>
+        <label class="cb @(Model.Request.UseLower ? "on" : "")">
+          <input type="checkbox" name="UseLower" value="true" @(Model.Request.UseLower ? "checked" : "")>
+          <span class="cb-box"></span>
+          <span class="cb-text">Строчные <code>abc</code></span>
+        </label>
+        <label class="cb @(Model.Request.UseDigits ? "on" : "")">
+          <input type="checkbox" name="UseDigits" value="true" @(Model.Request.UseDigits ? "checked" : "")>
+          <span class="cb-box"></span>
+          <span class="cb-text">Цифры <code>0–9</code></span>
+        </label>
+        <label class="cb @(Model.Request.UseSymbols ? "on" : "")">
+          <input type="checkbox" name="UseSymbols" value="true" @(Model.Request.UseSymbols ? "checked" : "")>
+          <span class="cb-box"></span>
+          <span class="cb-text">Символы <code>!&#64;#</code></span>
+        </label>
+        <label class="cb @(Model.Request.UseBrackets ? "on" : "")">
+          <input type="checkbox" name="UseBrackets" value="true" @(Model.Request.UseBrackets ? "checked" : "")>
+          <span class="cb-box"></span>
+          <span class="cb-text">Скобки <code>()[]{}</code></span>
+        </label>
+        <label class="cb @(Model.Request.UseSpace ? "on" : "")">
+          <input type="checkbox" name="UseSpace" value="true" @(Model.Request.UseSpace ? "checked" : "")>
+          <span class="cb-box"></span>
+          <span class="cb-text">Пробел</span>
+        </label>
+      </div>
+
+      <div class="field-group mt-12">
+        <label class="field-label">Свои символы</label>
+        <input type="text" name="CustomChars" value="@Model.Request.CustomChars"
+               placeholder="например: €£¥" class="text-input mono">
+      </div>
+
+      <hr class="divider">
+
+      <p class="field-label mb-8">Дополнительно</p>
+      <label class="cb-full @(Model.Request.ExcludeAmbiguous ? "on" : "")">
+        <input type="checkbox" name="ExcludeAmbiguous" value="true" @(Model.Request.ExcludeAmbiguous ? "checked" : "")>
+        <span class="cb-box"></span>
+        <span class="cb-text">Исключить похожие <code>0 O l 1 I</code></span>
+      </label>
+      <label class="cb-full @(Model.Request.NoRepeat ? "on" : "")">
+        <input type="checkbox" name="NoRepeat" value="true" @(Model.Request.NoRepeat ? "checked" : "")>
+        <span class="cb-box"></span>
+        <span class="cb-text">Без повторений</span>
+      </label>
+
+      <hr class="divider">
+
+      <label class="cb-full @(Model.Request.SaveToHistory ? "on" : "")">
+        <input type="checkbox" name="SaveToHistory" value="true" @(Model.Request.SaveToHistory ? "checked" : "")>
+        <span class="cb-box"></span>
+        <span class="cb-text">Сохранить в историю</span>
+      </label>
+
+      <button type="submit" class="btn-generate">Сгенерировать</button>
+    </form>
+  </aside>
+
+  <!-- RIGHT: results -->
+  <section class="results-panel">
+    @if (!Model.Generated)
+    {
+      <div class="empty-state">
+        <div class="empty-icon">⬡</div>
+        <p>Настройте параметры и нажмите<br>«Сгенерировать»</p>
+      </div>
+    }
+    else
+    {
+      <div class="results-header">
+        <span class="results-meta">@Model.Results.Count паролей · длина @Model.Request.Length</span>
+        <button class="btn-copy-all" onclick="copyAll()">Копировать все</button>
+      </div>
+
+      <div class="results-list">
+        @foreach (var r in Model.Results)
+        {
+          <div class="pwd-row">
+            <div class="pwd-main">
+              <span class="pwd-value mono">@r.Value</span>
+              <div class="pwd-meta">
+                <span class="strength-badge s@(r.StrengthLevel)">@r.StrengthLabel</span>
+                <span class="entropy-tag">@r.Entropy bits</span>
+              </div>
+            </div>
+            <div class="strength-bars">
+              @for (int i = 0; i < 4; i++)
+              {
+                <div class="bar @(i < r.StrengthLevel ? $"filled s{r.StrengthLevel}" : "")"></div>
+              }
+            </div>
+            <button class="btn-copy" data-val="@r.Value" onclick="copyBtn(this)">Копировать</button>
+          </div>
+        }
+      </div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+      <div class="alert-error">
+        @foreach (var err in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+          <p>@err.ErrorMessage</p>
+        }
+      </div>
+    }
+  </section>
+
+</div>
+
+@section Scripts {
+<script>
+function copyBtn(btn) {
+    const val = btn.dataset.val;
+    navigator.clipboard.writeText(val).then(() => {
+        btn.textContent = '✓ Скопировано';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Копировать'; btn.classList.remove('copied'); }, 1500);
+    });
+}
+function copyAll() {
+    const all = [...document.querySelectorAll('.pwd-value')].map(e => e.textContent).join('\n');
+    navigator.clipboard.writeText(all);
+}
+document.querySelectorAll('.cb input, .cb-full input').forEach(cb => {
+    cb.addEventListener('change', () => cb.closest('.cb, .cb-full').classList.toggle('on', cb.checked));
+});
+</script>
+}
