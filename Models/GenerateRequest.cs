@@ -4,7 +4,7 @@ namespace PasswordGenerator.Models;
 
 public class GenerateRequest
 {
-    [Range(4, 128)]
+    [Range(3, 500)]
     public int Length { get; set; } = 16;
 
     [Range(1, 100)]
